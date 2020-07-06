@@ -15,12 +15,10 @@ import sys
 import argparse
 import pickle
 
-sys.path.insert(0,'/share/splinter/ddm/taggingClean/')
 
 
-
-from src.datasets import ApogeeDataset
-from src.networks import ConditioningAutoencoder,Embedding_Decoder,Feedforward
+from tagging.src.datasets import ApogeeDataset
+from tagging.src.networks import ConditioningAutoencoder,Embedding_Decoder,Feedforward
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 ############################################

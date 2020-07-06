@@ -1,6 +1,6 @@
-#Tagging
+# Tagging
 
-A repository accompanying the *Put paper name*.
+Companion repository for  *Put paper name*.
 
 ## Dependencies
 

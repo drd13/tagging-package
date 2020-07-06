@@ -20,10 +20,9 @@ import torch.autograd as autograd
 import torch
 import argparse
 
-sys.path.insert(0,'/mnt/home/dmijolla/taggingPaper')
 
-from src.datasetsOld import ApogeeDataset
-from src.networks import ConditioningAutoencoder,Embedding_Decoder,Feedforward
+from tagging.src.datasetsOld import ApogeeDataset
+from tagging.src.networks import ConditioningAutoencoder,Embedding_Decoder,Feedforward
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 cuda = True if torch.cuda.is_available() else False
 
@@ -38,6 +37,7 @@ parser.add_argument("--n_bins", type=int, default=7751, help="size of each image
 parser.add_argument("--n_conditioned", type=int, default=2, help="number of parameters conditioned")
 parser.add_argument("--lambda_fact", type=float, default=0.0001, help="weight used for the factorizing loss")
 parser.add_argument("--noise", type=float, default=0.0, help="signal to noise ratio")
+parser.add_argument("--disentangle_z",type=bool,default=False, help="whether to include the metallicity z into the disentangled parameters or not")
 opt = parser.parse_args()
 
 n_embedding = 0 #this isn't explicity being used but I can't be bothered to change my code
@@ -46,13 +46,6 @@ print(opt)
 with open("parameters.p","wb") as f: #save hyperparameters to make them accesibl
     pickle.dump(opt,f)
 
-"""
-opt.n_batch = 256
-opt.n_bins = 7214 
-opt.n_conditioned = 2
-opt.n_z = 20
-opt.lr = 0.00001
-n_embedding = 0 """
 ################################################
 
 data = pd.read_pickle(opt.data_file)
@@ -129,14 +122,19 @@ for epoch in range(10000):
     for i, (x,u,v,idx) in enumerate(loader):
         if opt.noise!=0:
             #print("adding noise")
-            noise = x.data.new(x.size()).normal_(0.,1/opt.noise)*4  #the times 4 is because the data has already been scaled
+            noise = x.data.new(x.size()).normal_(0.,1/opt.noise)*4  #the times 4 is too account for the scaling/normalization that has already been done.
             x+=noise
         optimizer_G.zero_grad()
         n_perm=torch.randperm(opt.n_batch)
         u_perm = u[n_perm]
         n_perm2=torch.randperm(opt.n_batch)
-        x_pred,z = conditioning_autoencoder(x,u[:,0:2])
-        x_perm,_ = conditioning_autoencoder(z,u_perm[:,0:2],train_encoder=False)
+
+        if opt.disentangle_z:
+            x_pred,z = conditioning_autoencoder(x,u[:,0:3])
+            x_perm,_ = conditioning_autoencoder(z,u_perm[:,0:3],train_encoder=False)
+        else:
+            x_pred,z = conditioning_autoencoder(x,u[:,0:2])
+            x_perm,_ = conditioning_autoencoder(z,u_perm[:,0:2],train_encoder=False)
 
 
 
@@ -147,8 +145,12 @@ for epoch in range(10000):
         optimizer_D.zero_grad()
 
         # Sample noise as generator input
-        fake = torch.cat((x_perm,z,u_perm[:,0:2]),1)
-        real = torch.cat((x,z,u[:,0:2]),1)
+        if opt.disentangle_z:
+            fake = torch.cat((x_perm,z,u_perm[:,0:3]),1)
+            real = torch.cat((x,z,u[:,0:3]),1)
+        else:
+            fake = torch.cat((x_perm,z,u_perm[:,0:2]),1)
+            real = torch.cat((x,z,u[:,0:2]),1)
 
         # Real images
         real_validity = discriminator(real)
