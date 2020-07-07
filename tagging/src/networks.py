@@ -7,7 +7,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class ConditioningAutoencoder(nn.Module):
-    def __init__(self,encoder,decoder,n_bins = None,n_embedding=None):
+    def __init__(self,encoder,decoder,n_bins = None,n_embedding=0):
         super(ConditioningAutoencoder, self).__init__()
         self.n_bins = n_bins
         self.w = nn.Embedding(self.n_bins, n_embedding)
@@ -31,7 +31,7 @@ class ConditioningAutoencoder(nn.Module):
         return output,latent
 
 class ConditioningNosiyAutoencoder(nn.Module):
-    def __init__(self,encoder,decoder,noise=0,n_bins = None,n_embedding=None):
+    def __init__(self,encoder,decoder,noise=0,n_bins = None,n_embedding=0):
         super(ConditioningAutoencoder, self).__init__()
         self.n_bins = n_bins
         self.w = nn.Embedding(self.n_bins, n_embedding)
