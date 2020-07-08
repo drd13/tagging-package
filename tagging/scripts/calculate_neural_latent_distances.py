@@ -43,9 +43,6 @@ evaluation_loader = torch.utils.data.DataLoader(dataset = dataset,
                                      drop_last=True)
 
 
-n_bins = opt.n_bins
-n_conditioned = opt.n_conditioned
-n_z = opt.n_z
 
 
 encoder = Feedforward([opt.n_bins+opt.n_conditioned,2048,512,128,32,opt.n_z],activation=nn.SELU()).to(device)
@@ -62,7 +59,7 @@ dataset_latents= []
 dataset_xs=[]
 for j,(z,u,v,idx) in enumerate(evaluation_loader):
   print(j)
-  z_pred,z_latent = conditioning_autoencoder(z,u[:,0:3])
+  z_pred,z_latent = conditioning_autoencoder(z,u[:,0:opt.n_conditioned])
   if j==0:
     dataset_latents = z_latent.detach().cpu().numpy()
     dataset_xs = z.detach().cpu().numpy()
