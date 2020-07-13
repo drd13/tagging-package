@@ -30,6 +30,7 @@ parser.add_argument("--n_batch", type=int, default=250, help="size of the batche
 parser.add_argument("--n_bins", type=int, default=7751, help="size of each image dimension")
 parser.add_argument("--n_z", type=int, default=20, help="number of latent dimensions")
 parser.add_argument("--n_conditioned", type=int, default=3, help="number of parameters conditioned")
+parser.add_argument("--n_datapoints", type=int, default=3, help="number of parameters conditioned")
 parser.add_argument("--savepath", type=str, help="where to save the pickled files containing results")
 opt = parser.parse_args()
 
@@ -51,12 +52,13 @@ evaluation_loader = torch.utils.data.DataLoader(dataset = dataset,
                                      drop_last=True)
 
 
-
-encoder = Feedforward([opt.n_bins+opt.n_conditioned,2048,512,128,32,opt.n_z],activation=nn.SELU()).to(device)
-decoder = Feedforward([opt.n_z+opt.n_conditioned,512,2048,8192,opt.n_bins],activation=nn.SELU()).to(device)
-conditioning_autoencoder = ConditioningAutoencoder(encoder,decoder,n_bins=opt.n_bins).to(device)
-conditioning_autoencoder.load_state_dict(torch.load(opt.model_file))
-
+try:
+    encoder = Feedforward([opt.n_bins+opt.n_conditioned,2048,512,128,32,opt.n_z],activation=nn.SELU()).to(device)
+    decoder = Feedforward([opt.n_z+opt.n_conditioned,512,2048,8192,opt.n_bins],activation=nn.SELU()).to(device)
+    conditioning_autoencoder = ConditioningAutoencoder(encoder,decoder,n_bins=opt.n_bins).to(device)
+    conditioning_autoencoder.load_state_dict(torch.load(opt.model_file))
+except:
+    conditioning_autoencoder = torch.load(opt.model_file)
 
 ##################################################################
 #run throught the data and get all the latents and stellar spectra
@@ -81,7 +83,7 @@ latent_ranking=[]
 latent_tree = spatial.KDTree(dataset_latents)
 no_siblings = 0
 
-for i in range(25000):
+for i in range(opt.n_datapoints):
     d,idx2 = latent_tree.query(dataset_latents[i],p=2,k=50000)
     if 25000+i in idx2:
         pos = np.where(idx2==25000+i)[0][0]

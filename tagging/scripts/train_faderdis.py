@@ -83,7 +83,7 @@ optimizer_u1 = torch.optim.Adam(pred_u1_given_v.parameters(), lr=opt.lr)
 zeros = torch.full((opt.n_batch,2), 0.0, device=device)
 ones = torch.full((opt.n_batch,2),1.0,device=device)
 
-noise_matrix = torch.empty(50000,opt.n_bins).normal_(mean=0,std=1/opt.noise).to(device)*4 #We initialize one noisy version of every datapoint and always use the same noise. This was found to work better (but not fully understood)
+#noise_matrix = torch.empty(50000,opt.n_bins).normal_(mean=0,std=1/opt.noise).to(device)*4 #We initialize one noisy version of every datapoint and always use the same noise. This was found to work better (but not fully understood)
 
 for i in range(20000):
     if i%200==0:
@@ -93,9 +93,9 @@ for i in range(20000):
         torch.save(pred_u1_given_v, "u1I"+str(i))
     for j,(x,u,v,idx) in enumerate(loader):
         """Training loop"""
-        if opt.noise!=0:
-            noise = noise_matrix[idx]
-            x+=noise
+        #if opt.noise!=0:
+        #    noise = noise_matrix[idx]
+        #    x+=noise
 
         u_cat = ((u+1)*opt.n_cat/2).long()
         u_cat[u_cat==opt.n_cat]=opt.n_cat-1
