@@ -30,6 +30,7 @@ parser.add_argument("--n_batch", type=int, default=250, help="size of the batche
 parser.add_argument("--n_bins", type=int, default=7751, help="size of each image dimension")
 parser.add_argument("--n_z", type=int, default=20, help="number of latent dimensions")
 parser.add_argument("--n_conditioned", type=int, default=3, help="number of parameters conditioned")
+parser.add_argument("--n_queried", type=int, default=25000, help="number of siblings to investigate")
 parser.add_argument("--savepath", type=str, help="where to save the pickled files containing results")
 opt = parser.parse_args()
 
@@ -81,7 +82,7 @@ latent_ranking=[]
 latent_tree = spatial.KDTree(dataset_latents)
 no_siblings = 0
 
-for i in range(25000):
+for i in range(opt.n_queried):
     d,idx2 = latent_tree.query(dataset_latents[i],p=2,k=50000)
     if 25000+i in idx2:
         pos = np.where(idx2==25000+i)[0][0]
