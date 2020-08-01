@@ -10,7 +10,6 @@ class ConditioningAutoencoder(nn.Module):
     def __init__(self,encoder,decoder,n_bins = None,n_embedding=0):
         super(ConditioningAutoencoder, self).__init__()
         self.n_bins = n_bins
-        self.w = nn.Embedding(self.n_bins, n_embedding)
         self.encoder = encoder
         self.decoder = decoder
 
@@ -26,7 +25,7 @@ class ConditioningAutoencoder(nn.Module):
             latent = x
         if train_decoder:
             x = torch.cat((x,u),1)
-            x = self.decoder(x,t,self.w)
+            x = self.decoder(x)
             output = x
         return output,latent
 
@@ -153,7 +152,46 @@ class Embedding_Decoder(nn.Module):
         output = torch.squeeze(output,2)
         return output
       
-      
+class ParallelDecoder(nn.Module):
+    def __init__(self,structure = [22,10,10,1],n_bins=100,activation=nn.LeakyReLU(),reshape=True):
+        """Parameters
+        -------------
+        structure: list
+            list describing the shape and number of layers in decoder. Assumes the same architecture for each wavelength bin
+        n_bins: int
+            number of bins being modelled
+        activation: torch activation
+            activation function to use
+        reshape: bool
+            whether inputs need reshaping or not before being passed to forward"""
+        super(ParallelDecoder, self).__init__()
+        self.n_bins = n_bins
+        self.structure = structure
+        self.activation = activation
+        self.reshape = reshape
+        self.network = self.generate_convolutional_layers(self.structure,self.n_bins,self.activation)
+
+    
+    def generate_convolutional_layers(self,structure,n_bins,activation):
+        layers = []
+        for i in range(len(structure)-2):
+            layers.append(nn.Conv1d(in_channels=structure[i]*n_bins,out_channels=structure[i+1]*n_bins,kernel_size=1,groups=n_bins))
+            layers.append(activation)
+        layers.append(nn.Conv1d(in_channels=structure[-2]*n_bins,out_channels=structure[-1]*n_bins,kernel_size=1,groups=n_bins))
+        network = nn.Sequential(*layers)
+        return network
+    
+    def reshape_input(self,x):
+        repeated_x = x.repeat(1,self.n_bins)
+        repeated_x = repeated_x.unsqueeze(2)
+        return repeated_x
+    
+    def forward(self, latent):
+        if self.reshape:
+            latent = self.reshape_input(latent)
+        output = self.network(latent)
+        output = torch.squeeze(output)
+        return output      
       
 
 class Feedforward(nn.Module):

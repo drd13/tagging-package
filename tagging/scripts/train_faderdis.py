@@ -30,7 +30,7 @@ parser.add_argument("--lr", type=float, default=0.00001, help="learning rate")
 parser.add_argument("--n_z", type=int, default=20, help="dimensionality of the latent space")
 parser.add_argument("--n_bins", type=int, default=7751, help="size of each image dimension")
 parser.add_argument("--n_conditioned", type=int, default=2, help="number of parameters conditioned")
-parser.add_argument("--n_cat", type=int, default=30, help="discretization used by fadder network")
+parser.add_argument("--n_cat", type=int, default=10, help="discretization used by fadder network")
 parser.add_argument("--loss_ratio", type=float, default=0.00001, help="discretization used by fadder network")
 parser.add_argument("--noise", type=float, default=0.0, help="signal to noise ratio")
 opt = parser.parse_args()
@@ -57,15 +57,19 @@ loader = torch.utils.data.DataLoader(dataset = dataset,
 
 """Initialize the neural networks"""
 
-encoder = Feedforward([opt.n_bins+opt.n_conditioned,2048,512,128,32,opt.n_z],activation=nn.SELU()).to(device)
+encoder = Feedforward([opt.n_bins+opt.n_conditioned,2048,512,128,opt.n_z],activation=nn.SELU()).to(device)
 decoder = Feedforward([opt.n_z+opt.n_conditioned,512,2048,8192,opt.n_bins],activation=nn.SELU()).to(device)
 conditioning_autoencoder = ConditioningAutoencoder(encoder,decoder,n_bins=opt.n_bins,n_embedding=0).to(device)
 #conditioning_autoencoder = torch.load("../../feed/trueCont/exp1/feedN7214I1700") 
 #conditioning_autoenocoder = torch.load("adN7214I560")
 
-pred_u0_given_v = Feedforward([opt.n_z+1,512,256,opt.n_cat],activation=nn.SELU()).to(device)
-pred_u1_given_v = Feedforward([opt.n_z+1,512,256,opt.n_cat],activation=nn.SELU()).to(device)
+pred_u0_given_v = Feedforward([opt.n_z,512,256,opt.n_cat**opt.n_conditioned],activation=nn.SELU()).to(device)
 
+
+def one_dimensional_discretize(u_val,n_cat):
+    u_cat = ((u_val+1)*n_cat/2).long()
+    u_cat[u_cat==n_cat]=n_cat-1
+    return u_cat
 
 ###################################################
 
@@ -76,7 +80,6 @@ loss2 = nn.CrossEntropyLoss()
 lr2 = 0.00001
 optimizer_autoencoder = torch.optim.Adam(conditioning_autoencoder.parameters(), lr=opt.lr)
 optimizer_u0 = torch.optim.Adam(pred_u0_given_v.parameters(), lr=opt.lr)
-optimizer_u1 = torch.optim.Adam(pred_u1_given_v.parameters(), lr=opt.lr)
 
 
 #######################Train#########################
@@ -90,36 +93,40 @@ for i in range(20000):
         """We save the neural network every x iterations"""
         torch.save(conditioning_autoencoder, "adN7214I"+str(i)) 
         torch.save(pred_u0_given_v, "u0I"+str(i)) 
-        torch.save(pred_u1_given_v, "u1I"+str(i))
     for j,(x,u,v,idx) in enumerate(loader):
         """Training loop"""
-        if opt.noise!=0:
-            noise = noise_matrix[idx]
-            x+=noise
+        
+        if opt.n_conditioned == 2:
+            u0_cat = one_dimensional_discretize(u[:,0:1].clone(),opt.n_cat)
+            u1_cat = one_dimensional_discretize(u[:,1:2].clone(),opt.n_cat)
+            u_cat = opt.n_cat*u0_cat+u1_cat
+            u_cat.requires_grad=False
 
-        u_cat = ((u+1)*opt.n_cat/2).long()
-        u_cat[u_cat==opt.n_cat]=opt.n_cat-1
+        if opt.n_conditioned == 3:
+            u0_cat = one_dimensional_discretize(u[:,0:1].clone(),opt.n_cat)
+            u1_cat = one_dimensional_discretize(u[:,1:2].clone(),opt.n_cat)
+            u2_cat = one_dimensional_discretize(u[:,2:3].clone(),opt.n_cat)
+            u_cat = opt.n_cat*opt.n_cat*u0_cat+u1_cat*opt.n_cat+u2_cat
+            u_cat.requires_grad=False
+
+
 
         optimizer_autoencoder.zero_grad()
-        x_pred,z = conditioning_autoencoder(x,u[:,0:2].detach())
+        x_pred,z = conditioning_autoencoder(x,u[:,0:opt.n_conditioned])
 
         err_pred = loss(x_pred,x)  
 
-        z0 = torch.cat((z,u[:,1:2]),1)
-        z1 = torch.cat((z,u[:,0:1]),1)
-        u0_pred = pred_u0_given_v(z0)  
-        u1_pred = pred_u1_given_v(z1)  
+        u0_pred = pred_u0_given_v(z)
+        
         err_u0 = loss2(u0_pred,u_cat[:,0])
-        err_u1 = loss2(u1_pred,u_cat[:,1])
-        err_tot = err_pred-opt.loss_ratio*err_u0-opt.loss_ratio*err_u1 #agrregated loss
+        err_tot = err_pred-opt.loss_ratio*err_u0 #agrregated loss
 
         err_tot.backward(retain_graph=True)
+        #err_tot.backward()
         optimizer_autoencoder.step()
         optimizer_u0.zero_grad()
-        err_u0.backward(retain_graph=True)
+        err_u0.backward()
         optimizer_u0.step()
-        optimizer_u1.zero_grad()
-        err_u1.backward()
-        optimizer_u1.step()
+       
         if j%10==0:
-            print("tot:{},err:{},err_u0:{},er_u1:{}".format(err_tot,err_pred,err_u0,err_u1))
+            print("tot:{},err:{},err_u0:{}".format(err_tot,err_pred,err_u0))
