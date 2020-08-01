@@ -55,3 +55,54 @@ class ApogeeDataset(Dataset):
         u = torch.tensor(self.parameters[idx]*2-1,device=device)
         v = torch.tensor(self.abundances[idx]*2-1,device=device)
         return z.float(),u.float(),v.float(),idx
+    
+    
+    
+    
+class ToyDataset(Dataset):
+    def __init__(self,n_datapoints,n_signals,n_bins,fraction_signal):
+        """
+        n_datapoints: int
+            number of datapoints in dataset
+        n_signals: int
+            number of laten variables to include in the signal
+        n_bins: int
+            number of bins in the latent signal
+        fraction_signal: int
+            fractions of bins containing each signal"""
+            
+        self.n_datapoints = n_datapoints
+        self.n_signals = n_signals
+        self.n_bins = n_bins
+        self.fraction_signal = fraction_signal
+    
+        self.basis = self.generate_signal_basis(self.n_signals,self.n_bins,self.fraction_signal)
+        self.amplitudes = self.generate_amplitudes_dataset(self.n_signals,self.n_datapoints)
+        self.dataset = self.generate_dataset(self.basis,self.amplitudes)
+        self.dataset = torch.FloatTensor(self.dataset)
+
+        
+    def generate_signal_basis(self,n_signals,n_bins,fraction_signal):
+        """returns an np.array of shape n_signals*n_bins where every row is the basis of its respective signal"""
+        return (np.random.random_sample(size=(n_signals,n_bins))<fraction_signal).astype(float)
+    
+    def generate_amplitudes_dataset(self,n_signals,n_datapoints):
+        """generate the amplitude of each observation signal bin
+        returns an array of shape n_signals*n_datapoints"""
+        return np.random.normal(0,0.3,size= (n_signals,n_datapoints))
+    
+    def generate_dataset(self,basis,amplitudes):
+        print(basis.shape)
+        print(amplitudes.shape)
+        return np.matmul(amplitudes.T,basis) 
+    
+    
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self,idx):
+        return self.dataset[idx]
+        
+    
+
+    
