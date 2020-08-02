@@ -53,10 +53,13 @@ evaluation_loader = torch.utils.data.DataLoader(dataset = dataset,
 
 
 
-encoder = Feedforward([opt.n_bins+opt.n_conditioned,2048,512,128,32,opt.n_z],activation=nn.SELU()).to(device)
-decoder = Feedforward([opt.n_z+opt.n_conditioned,512,2048,8192,opt.n_bins],activation=nn.SELU()).to(device)
-conditioning_autoencoder = ConditioningAutoencoder(encoder,decoder,n_bins=opt.n_bins).to(device)
-conditioning_autoencoder.load_state_dict(torch.load(opt.model_file))
+try:
+    conditioning_autoencoder = torch.load(opt.model_file)
+except:
+    encoder = Feedforward([opt.n_bins+opt.n_conditioned,2048,512,128,32,opt.n_z],activation=nn.SELU()).to(device)
+    decoder = Feedforward([opt.n_z+opt.n_conditioned,512,2048,8192,opt.n_bins],activation=nn.SELU()).to(device)
+    conditioning_autoencoder = ConditioningAutoencoder(encoder,decoder,n_bins=opt.n_bins).to(device)
+    conditioning_autoencoder.load_state_dict(torch.load(opt.model_file))
 
 
 ##################################################################
