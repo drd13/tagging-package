@@ -51,7 +51,6 @@ def get_batch(j,n_batch,dataset):
 
 def get_xdata():
     """returns an array containing the wavelength of each bin"""
-    """
     ### old way of getting x
     nlam = 8575 
     start_wl = 4.179 
@@ -59,25 +58,25 @@ def get_xdata():
     val = diff_wl*(nlam) + start_wl  
     wl_full_log = np.arange(start_wl,val, diff_wl) 
     wl_full = [10**aval for aval in wl_full_log] 
-    xdata = np.array(wl_full)"""
-    pickled_spectra = os.path.join(os.path.dirname("/share/splinter/ddm/taggingProject/taggingRepo/tagging/src/utils.py"),"x_spectra.p")
-    with open(pickled_spectra,"rb") as f:
-        xdata = pickle.load(f)
+    xdata = np.array(wl_full)
+    #pickled_spectra = os.path.join(os.path.dirname("/share/splinter/ddm/taggingProject/taggingRepo/tagging/src/utils.py"),"x_spectra.p")
+    #with open(pickled_spectra,"rb") as f:
+    #    xdata = pickle.load(f)
     return xdata
+
 
 
 def load_model(model_path,n_bins=7751,n_conditioned=3,n_z=20):
     """loads a model from the path"""
-    conditioning_autoencoder = torch.load(model_path)
+    conditioning_autoencoder = torch.load(model_path, map_location=device)
     if type(conditioning_autoencoder) == collections.OrderedDict:
         encoder = Feedforward([n_bins+n_conditioned,2048,512,128,32,n_z],activation=nn.SELU()).to(device)
         decoder = Feedforward([n_z+n_conditioned,512,2048,8192,n_bins],activation=nn.SELU()).to(device)
         conditioning_autoencoder = ConditioningAutoencoder(encoder,decoder,n_bins=n_bins).to(device)
-        weights  = torch.load(model_path)
+        weights  = torch.load(model_path,map_location=device)
         try:
             del weights['w.weight']
         except:
             pass
         conditioning_autoencoder.load_state_dict(weights)
     return conditioning_autoencoder
-
